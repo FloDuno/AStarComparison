@@ -6,8 +6,6 @@ namespace AStarGameObject
     {
         public Transform AStarTerrain;
 
-        public float MaxTerrainHeight;
-
         public Vector2Int GridSize;
 
         [HideInInspector]
@@ -15,11 +13,6 @@ namespace AStarGameObject
 
         private void OnValidate()
         {
-            if (MaxTerrainHeight <= 0)
-            {
-                MaxTerrainHeight = 0.1f;
-            }
-
             if (GridSize.x <= 0)
             {
                 GridSize.x = 1;
@@ -37,15 +30,16 @@ namespace AStarGameObject
                                 .GetComponent<MeshFilter>()
                                 .mesh.bounds;
             // Get x and z real scales
-            var terrainDimension = new Vector2(
-                terrainBounds.size.x * AStarTerrain.lossyScale.x,
-                terrainBounds.size.z * AStarTerrain.lossyScale.z);
+            var terrainRealExtents = new Vector3(
+                terrainBounds.extents.x * AStarTerrain.lossyScale.x,
+                terrainBounds.extents.y * AStarTerrain.lossyScale.y,
+                terrainBounds.extents.z * AStarTerrain.lossyScale.z);
             // Get left up corner when seen from above
             var startScanPoint = new Vector3(
-                AStarTerrain.position.x - terrainDimension.x / 2,
-                MaxTerrainHeight,
-                AStarTerrain.position.z + terrainDimension.y / 2);
-            GridCells = ScanTerrain(startScanPoint, terrainDimension);
+                AStarTerrain.position.x - terrainRealExtents.x ,
+                AStarTerrain.position.y + terrainRealExtents.y,
+                AStarTerrain.position.z + terrainRealExtents.z);
+            GridCells = ScanTerrain(startScanPoint, terrainRealExtents * 2);
         }
 
         /// <summary>
@@ -54,11 +48,12 @@ namespace AStarGameObject
         /// <param name="startPoint"></param>
         /// <param name="size"></param>
         /// <returns></returns>
-        private Vector3[,] ScanTerrain(Vector3 startPoint, Vector2 size)
+        private Vector3[,] ScanTerrain(Vector3 startPoint, Vector3 size)
         {
-            var gridCells = new Vector3[GridSize.x, GridSize.y];
-            var step = new Vector2(size.x / GridSize.x, size.y / GridSize.y);
-            for (var i = 0; i < GridSize.x; i++)
+            // Do one more to make the grid extends to the ledge of the terrain
+            var gridCells = new Vector3[GridSize.x + 1, GridSize.y + 1];
+            var step = new Vector2(size.x / GridSize.x, size.z / GridSize.y);
+            for (var i = 0; i <= GridSize.x; i++)
             {
                 // First point of the i column
                 var scanPos = new Vector3(
@@ -66,14 +61,14 @@ namespace AStarGameObject
                     startPoint.y,
                     startPoint.z);
                 // j = row
-                for (var j = 0; j < GridSize.y; j++)
+                for (var j = 0; j <= GridSize.y; j++)
                 {
                     RaycastHit hit;
                     var groundRaycast = Physics.Raycast(
                         scanPos,
                         Vector3.down,
                         out hit,
-                        MaxTerrainHeight + 1);
+                        size.y + 1);
                     if (!groundRaycast)
                     {
                         Debug.LogError(
@@ -92,7 +87,6 @@ namespace AStarGameObject
                     scanPos -= new Vector3(0, 0, step.y);
                 }
             }
-
             return gridCells;
         }
     }
