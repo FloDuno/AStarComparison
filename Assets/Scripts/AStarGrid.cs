@@ -4,12 +4,15 @@ namespace AStarGameObject
 {
     public class AStarGrid : MonoBehaviour
     {
+        public static AStarGrid Instance;
         public Transform AStarTerrain;
 
         public Vector2Int GridSize;
 
         [HideInInspector]
         public Vector3[,] GridCells;
+
+        private Vector3 realExtents;
 
         private void OnValidate()
         {
@@ -26,20 +29,27 @@ namespace AStarGameObject
 
         private void OnEnable()
         {
+            if (Instance != null)
+            {
+                Destroy(this);
+                return;
+            }
+
+            Instance = this;
             var terrainBounds = AStarTerrain
                                 .GetComponent<MeshFilter>()
                                 .mesh.bounds;
             // Get x and z real scales
-            var terrainRealExtents = new Vector3(
+            realExtents = new Vector3(
                 terrainBounds.extents.x * AStarTerrain.lossyScale.x,
                 terrainBounds.extents.y * AStarTerrain.lossyScale.y,
                 terrainBounds.extents.z * AStarTerrain.lossyScale.z);
             // Get left up corner when seen from above
             var startScanPoint = new Vector3(
-                AStarTerrain.position.x - terrainRealExtents.x ,
-                AStarTerrain.position.y + terrainRealExtents.y,
-                AStarTerrain.position.z + terrainRealExtents.z);
-            GridCells = ScanTerrain(startScanPoint, terrainRealExtents * 2);
+                AStarTerrain.position.x - realExtents.x,
+                AStarTerrain.position.y + realExtents.y,
+                AStarTerrain.position.z + realExtents.z);
+            GridCells = ScanTerrain(startScanPoint, realExtents * 2);
         }
 
         /// <summary>
@@ -87,7 +97,63 @@ namespace AStarGameObject
                     scanPos -= new Vector3(0, 0, step.y);
                 }
             }
+
             return gridCells;
+        }
+
+        public Vector3 GetNearestCell(Vector3 point)
+        {
+            //Make sure the point is in the grid
+            point.x = Mathf.Clamp(
+                point.x,
+                AStarTerrain.position.x - realExtents.x,
+                AStarTerrain.position.x + realExtents.x);
+            point.y = Mathf.Clamp(
+                point.y,
+                AStarTerrain.position.y - realExtents.y,
+                AStarTerrain.position.y + realExtents.y);
+            point.z = Mathf.Clamp(
+                point.z,
+                AStarTerrain.position.z - realExtents.z,
+                AStarTerrain.position.z + realExtents.z);
+            var lastCell = GridCells[GridCells.GetUpperBound(0),
+                                     GridCells.GetUpperBound(1)];
+            var shorterDistance =
+                    Vector3.SqrMagnitude(lastCell - GridCells[0, 0]);
+            var closestColumn = 0;
+            for (var i = 0; i < GridSize.x + 1; i++)
+            {
+                var distance = Vector3.SqrMagnitude(GridCells[i, 0] - point);
+                if (distance < shorterDistance)
+                {
+                    shorterDistance = distance;
+                    closestColumn = i;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            var closestRow = 0;
+            for (var j = 0; j < GridSize.y; j++)
+            {
+                var distance =
+                        Vector3.SqrMagnitude(
+                            GridCells[closestColumn, j] - point);
+                Debug.Log(distance);
+                if (distance <= shorterDistance)
+                {
+                    shorterDistance = distance;
+                    closestRow = j;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            var toReturn = GridCells[closestColumn, closestRow];
+            return toReturn;
         }
     }
 }
