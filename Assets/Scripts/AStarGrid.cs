@@ -31,34 +31,41 @@ namespace AStarGameObject
             }
         }
 
-        // Start is called before the first frame update
         private void OnEnable()
         {
             var terrainBounds = AStarTerrain
-                          .GetComponent<MeshFilter>()
-                          .mesh.bounds;
+                                .GetComponent<MeshFilter>()
+                                .mesh.bounds;
+            // Get x and z real scales
             var terrainDimension = new Vector2(
-                terrainBounds.size.x * AStarTerrain.lossyScale.x, 
-                terrainBounds.size.z * AStarTerrain.lossyScale.z
-                );
+                terrainBounds.size.x * AStarTerrain.lossyScale.x,
+                terrainBounds.size.z * AStarTerrain.lossyScale.z);
+            // Get left up corner when seen from above
             var startScanPoint = new Vector3(
                 AStarTerrain.position.x - terrainDimension.x / 2,
                 MaxTerrainHeight,
-                AStarTerrain.position.z + terrainDimension.y / 2
-                );
+                AStarTerrain.position.z + terrainDimension.y / 2);
             GridCells = ScanTerrain(startScanPoint, terrainDimension);
         }
 
+        /// <summary>
+        /// Raycast every point of the grid to get the height at this point
+        /// </summary>
+        /// <param name="startPoint"></param>
+        /// <param name="size"></param>
+        /// <returns></returns>
         private Vector3[,] ScanTerrain(Vector3 startPoint, Vector2 size)
         {
             var gridCells = new Vector3[GridSize.x, GridSize.y];
             var step = new Vector2(size.x / GridSize.x, size.y / GridSize.y);
             for (var i = 0; i < GridSize.x; i++)
             {
+                // First point of the i column
                 var scanPos = new Vector3(
                     startPoint.x + step.x * i,
                     startPoint.y,
                     startPoint.z);
+                // j = row
                 for (var j = 0; j < GridSize.y; j++)
                 {
                     RaycastHit hit;
@@ -81,6 +88,7 @@ namespace AStarGameObject
                             scanPos.z);
                     }
 
+                    // Change Row
                     scanPos -= new Vector3(0, 0, step.y);
                 }
             }
